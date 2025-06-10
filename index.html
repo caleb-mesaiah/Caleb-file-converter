@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caleb File Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <img src="logo.png" alt="Caleb File Converter Logo" class="logo">
+        <h1>Caleb File Converter</h1>
+        <p class="subtitle">A powerful online tool that makes it simple to convert images between different formats. Whether you need to convert JPG to PNG, TIFF to GIF, or any other format, our converter has you covered.</p>
+        <form action="/convert" method="post" enctype="multipart/form-data">
+            <label for="file">Upload File:</label>
+            <input type="file" id="file" name="file" accept=".jpg,.jpeg,.png,.webp,.gif,.tiff,.pdf,.docx" required>
+            <label for="conversion_type">Convert To:</label>
+            <select id="conversion_type" name="conversion_type">
+                <option value="jpg_to_png">JPG/JPEG to PNG</option>
+                <option value="png_to_jpg">PNG to JPG</option>
+                <option value="webp_to_png">WEBP to PNG</option>
+                <option value="png_to_webp">PNG to WEBP</option>
+                <option value="gif_to_png">GIF to PNG</option>
+                <option value="tiff_to_jpg">TIFF to JPG</option>
+                <option value="pdf_to_docx">PDF to DOCX</option>
+                <option value="docx_to_pdf">DOCX to PDF</option>
+                <option value="remove_bg">Remove Background (PNG)</option>
+            </select>
+            <button type="submit">Convert & Download</button>
+        </form>
+    </div>
+</body>
+</html>
