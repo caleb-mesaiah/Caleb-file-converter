@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caleb File Converter</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
         <img src="logo.png" alt="Caleb File Converter Logo" class="logo">
         <h1>Caleb File Converter</h1>
         <p class="subtitle">A powerful online tool that makes it simple to convert images between different formats. Whether you need to convert JPG to PNG, TIFF to GIF, or any other format, our converter has you covered.</p>
-        <form action="/convert" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" action="/convert" method="post" enctype="multipart/form-data">
             <label for="file">Upload File:</label>
             <input type="file" id="file" name="file" accept=".jpg,.jpeg,.png,.webp,.gif,.tiff,.pdf,.docx" required>
             <label for="conversion_type">Convert To:</label>
@@ -29,5 +30,33 @@
             <button type="submit">Convert & Download</button>
         </form>
     </div>
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function (event) {
+            const conversionType = document.getElementById('conversion_type').value;
+            if (conversionType === 'docx_to_pdf') {
+                event.preventDefault();
+                const formData = new FormData(event.target);
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const lines = htmlContent.split('\n').filter(line => line.trim().startsWith('<p>'));
+                    let y = 10;
+                    lines.forEach(line => {
+                        const text = line.replace(/<\/?p>/g, '');
+                        doc.text(text, 10, y);
+                        y += 10;
+                    });
+                    doc.save('converted_docx.pdf');
+                } else {
+                    alert('Error: ' + await response.text());
+                }
+            }
+        });
+    </script>
 </body>
 </html>
