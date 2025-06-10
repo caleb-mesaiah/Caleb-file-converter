@@ -1,0 +1,6 @@
+flask==3.0.3
+pillow==10.4.0
+pypdf2==3.0.1
+python-docx==1.1.2
+rembg==2.0.59
+pdfkit==1.0.0
