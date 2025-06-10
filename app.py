@@ -1,17 +1,16 @@
 from flask import Flask, request, render_template, send_file
 from PIL import Image
-from PyPDF2 import PdfReader  # Changed to PyPDF2
+from PyPDF2 import PdfReader
 from docx import Document
 import os
 import requests
 import io
 import traceback
 
-app = Flask(__name__, template_folder='.')  # Set template folder to root
-UPLOAD_FOLDER = '/tmp/uploads'  # Use /tmp for Vercel
+app = Flask(__name__, template_folder='.')
+UPLOAD_FOLDER = '/tmp/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Ensure upload folder exists
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -34,7 +33,6 @@ def convert():
         if not conversion_type:
             return "No conversion type selected", 400
 
-        # Sanitize filename
         filename = file.filename.replace(' ', '_').replace('/', '_')
         input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(input_path)
