@@ -1,34 +1,46 @@
-from flask import Flask, request, render_template, send_file, Response
+from flask import Flask, request, render_template, send_file
 from PIL import Image
-from pypdf2 import PdfReader
+from PyPDF2 import PdfReader  # Changed to PyPDF2
 from docx import Document
 import os
 import requests
 import io
+import traceback
 
-app = Flask(__name__)
-UPLOAD_FOLDER = 'uploads'
+app = Flask(__name__, template_folder='.')  # Set template folder to root
+UPLOAD_FOLDER = '/tmp/uploads'  # Use /tmp for Vercel
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Ensure upload folder exists
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"Error rendering template: {str(e)}", 500
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    if 'file' not in request.files:
-        return "No file uploaded", 400
-    file = request.files['file']
-    conversion_type = request.form['conversion_type']
-    if file.filename == '':
-        return "No file selected", 400
-
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-    file.save(input_path)
-    output_filename = 'converted_' + file.filename
-    output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
-
     try:
+        if 'file' not in request.files:
+            return "No file uploaded", 400
+        file = request.files['file']
+        conversion_type = request.form.get('conversion_type', '')
+        if file.filename == '':
+            return "No file selected", 400
+        if not conversion_type:
+            return "No conversion type selected", 400
+
+        # Sanitize filename
+        filename = file.filename.replace(' ', '_').replace('/', '_')
+        input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(input_path)
+        output_filename = 'converted_' + filename
+        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+
         if conversion_type in ['jpg_to_png', 'png_to_jpg', 'webp_to_png', 'png_to_webp', 'gif_to_png', 'tiff_to_jpg']:
             img = Image.open(input_path)
             img = img.convert('RGB') if conversion_type != 'png_to_webp' else img
@@ -54,7 +66,8 @@ def convert():
             pdf = PdfReader(input_path)
             doc = Document()
             for page in pdf.pages:
-                doc.add_paragraph(page.extract_text())
+                text = page.extract_text() or ''
+                doc.add_paragraph(text)
             output_path = output_path.replace('.pdf', '.docx')
             doc.save(output_path)
         elif conversion_type == 'docx_to_pdf':
@@ -63,16 +76,17 @@ def convert():
             for para in doc.paragraphs:
                 html_content += f"<p>{para.text}</p>"
             html_content += "</body></html>"
-            output_path = output_path.replace('.docx', '.pdf')
-            # Simple HTML-to-PDF (requires client-side library or API in production)
+            output_path = output_path.replace('.docx', '.html')
             with open(output_path, 'w') as f:
                 f.write(html_content)
         elif conversion_type == 'remove_bg':
-            api_key = os.getenv('REMOVE_BG_API_KEY', 'YOUR_API_KEY')  # Set in Vercel
+            api_key = os.getenv('REMOVE_BG_API_KEY', '')
+            if not api_key:
+                return "Remove.bg API key not configured", 500
             url = 'https://api.remove.bg/v1.0/removebg'
             files = {'image_file': open(input_path, 'rb')}
             headers = {'X-Api-Key': api_key}
-            response = requests.post(url, files=files, headers=headers)
+            response = requests.post(url, files=files, headers=headers, timeout=10)
             if response.status_code == 200:
                 output_path = output_path.rsplit('.', 1)[0] + '_nobg.png'
                 with open(output_path, 'wb') as out:
@@ -82,16 +96,23 @@ def convert():
         else:
             return "Invalid conversion type", 400
 
+        if not os.path.exists(output_path):
+            return "Output file not created", 500
         return send_file(output_path, as_attachment=True, download_name=output_filename)
     except Exception as e:
-        return f"Error: {str(e)}", 500
+        traceback.print_exc()
+        return f"Error during conversion: {str(e)}", 500
     finally:
         if os.path.exists(input_path):
-            os.remove(input_path)
+            try:
+                os.remove(input_path)
+            except:
+                pass
         if os.path.exists(output_path):
-            os.remove(output_path)
+            try:
+                os.remove(output_path)
+            except:
+                pass
 
 if __name__ == '__main__':
-    if not os.path.exists(UPLOAD_FOLDER):
-        os.makedirs(UPLOAD_FOLDER)
     app.run(debug=True)
