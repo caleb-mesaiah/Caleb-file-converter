@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, send_file
+ from flask import Flask, request, render_template, send_file
 from PIL import Image, ImageEnhance
 import os
 import requests
@@ -75,17 +75,17 @@ def convert():
                 headers={'Authorization': f'Bearer {cloudconvert_api_key}'},
                 json={
                     'tasks': {
-                        'import': {
+                        'import-file': {
                             'operation': 'import/upload'
                         },
-                        'convert': {
+                        'convert-file': {
                             'operation': 'convert',
-                            'input': 'import',
+                            'input': 'import-file',
                             'output_format': output_format
                         },
-                        'export': {
+                        'export-file': {
                             'operation': 'export/url',
-                            'input': 'convert'
+                            'input': 'convert-file'
                         }
                     }
                 }
@@ -94,15 +94,23 @@ def convert():
                 logger.error(f"CloudConvert job creation failed: {job_response.text}")
                 return f"CloudConvert API error: {job_response.text}", 500
             job_id = job_response.json()['data']['id']
+            logger.info(f"Created CloudConvert job: {job_id}")
 
-            # Upload file
-            upload_task = next(t for t in job_response.json()['data']['tasks'] if t['name'] == 'import')
+            # Get upload URL and parameters
+            upload_task = next(t for t in job_response.json()['data']['tasks'] if t['name'] == 'import-file')
             upload_url = upload_task['result']['form']['url']
+            upload_params = upload_task['result']['form']['parameters']
+            logger.info(f"Uploading file to: {upload_url}")
+
+            # Upload file with correct parameters
             with open(input_path, 'rb') as f:
-                upload_response = requests.post(upload_url, files={'file': f})
+                files = {'file': (filename, f)}
+                data = {k: v for k, v in upload_params.items() if k != 'file'}
+                upload_response = requests.post(upload_url, files=files, data=data)
                 if upload_response.status_code != 200:
                     logger.error(f"CloudConvert upload failed: {upload_response.text}")
                     return f"File upload to CloudConvert failed: {upload_response.text}", 500
+            logger.info(f"File uploaded successfully")
 
             # Wait for job completion
             while True:
@@ -119,7 +127,7 @@ def convert():
                 return f"CloudConvert conversion failed: {job_status}", 500
 
             # Download converted file
-            export_task = next(t for t in job_status['data']['tasks'] if t['name'] == 'export')
+            export_task = next(t for t in job_status['data']['tasks'] if t['name'] == 'export-file')
             file_url = export_task['result']['files'][0]['url']
             output_path = output_path.rsplit('.', 1)[0] + f'.{output_format}'
             output_filename = output_filename.rsplit('.', 1)[0] + f'.{output_format}'
